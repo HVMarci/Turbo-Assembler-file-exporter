@@ -1,0 +1,9 @@
+# commodore stuff
+*.d64
+*.zip
+
+# VSCode stuff
+.vscode
+
+# Binary stuff
+*.exe
