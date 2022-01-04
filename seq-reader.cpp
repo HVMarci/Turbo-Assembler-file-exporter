@@ -31,6 +31,14 @@ class FileHandler {
         }
 };
 
+struct DirEntry {
+    std::pair<int, int> firstSector; // <track, sector>
+    int fileType;
+    bool locked, closed;
+    std::string fileName;
+    int fileSize;
+};
+
 int countOnBits(unsigned char a) {
     int c = 0;
     while (a) {
@@ -137,6 +145,7 @@ int main(int argc, char** argv) {
 
     std::cout << "Directory:" << std::endl;
 
+    std::vector<DirEntry> directory;
     std::vector<unsigned char> dir(256); // TODO: rename
     int track = 18, sector = 1;
     do {
@@ -149,33 +158,36 @@ int main(int argc, char** argv) {
         sector = dir[1];
 
         for (int i = 0; i < 256; i += 32) {
-            int fileSize = dir[i + 0x1E] + dir[i + 0x1F] * 256;
-            std::cout << std::setw(3) << std::left << fileSize << "  \""; // SD2IEC esetében a 4 számjegyű számok után elcsúszik a szöveg
+            DirEntry entry;
+            entry.fileSize = dir[i + 0x1E] + dir[i + 0x1F] * 256;
+            std::cout << std::setw(3) << std::left << entry.fileSize << "  \""; // SD2IEC esetében a 4 számjegyű számok után elcsúszik a szöveg
 
-            std::string fileName;
             for (int j = 0; j < 16; j++) {
                 if (dir[i + 5 + j] == 0xA0) break; // remove padding
-                fileName += dir[i + 5 + j];
+                entry.fileName += (char) dir[i + 5 + j];
             }
 
-            std::cout << fileName << "\"";
-            for (int i = fileName.size(); i < 17; i++) {
+            std::cout << entry.fileName << "\"";
+            for (int i = entry.fileName.size(); i < 17; i++) {
                 std::cout << " ";
             }
 
-            bool locked = dir[i + 2] & 0b01000000, closed = dir[i + 2] & 0b10000000;
-            std::cout << "* "[closed];
+            entry.locked = dir[i + 2] & 0b01000000;
+            entry.closed = dir[i + 2] & 0b10000000;
+            std::cout << "* "[entry.closed];
 
-            int fileType = dir[i + 2] & 0b1111;
-            if (fileType <= 0b100) {
-                std::cout << fileTypes[fileType];
+            entry.fileType = dir[i + 2] & 0b1111;
+            if (entry.fileType <= 0b100) {
+                std::cout << fileTypes[entry.fileType];
             } else {
                 std::cout << "???";
             }
 
-            std::cout << " <"[locked];
+            std::cout << " <"[entry.locked];
 
             std::cout << std::endl;
+
+            directory.push_back(entry);
         }
     } while (track != 0);
 }
