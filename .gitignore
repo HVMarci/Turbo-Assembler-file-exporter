@@ -1,6 +1,7 @@
 # Commodore stuff
 *.d64
 *.zip
+*.prg
 
 # Hex editor stuff
 *.bak

@@ -8,6 +8,7 @@ constexpr long long D64_FILE_SIZE = 174848;
 constexpr long long BAM_AREA_START = 0x16500;
 
 std::vector<std::string> fileTypes{"DEL", "SEQ", "PRG", "USR", "REL"};
+constexpr int DEL = 0, SEQ = 1, PRG = 2, USR = 3, REL = 4;
 
 class FileHandler {
     public:
@@ -31,8 +32,12 @@ class FileHandler {
         }
 };
 
+struct TrackSector {
+    int track, sector;
+};
+
 struct DirEntry {
-    std::pair<int, int> firstSector; // <track, sector>
+    TrackSector firstSector;
     int fileType;
     bool locked, closed;
     std::string fileName;
@@ -82,7 +87,8 @@ void posInImageTest() {
 
 int main(int argc, char** argv) {
     std::string filename;
-    std::cin >> filename;
+    std::cin >> std::ws;
+    std::getline(std::cin, filename);
     
     long long fileSize = FileHandler::getLength(filename);
     if (fileSize != D64_FILE_SIZE) {
@@ -185,9 +191,65 @@ int main(int argc, char** argv) {
 
             std::cout << " <"[entry.locked];
 
-            std::cout << std::endl;
+            entry.firstSector.track = dir[i + 3];
+            entry.firstSector.sector = dir[i + 4];
+
+            std::cout << "   (Starts at " << entry.firstSector.track << "/" << entry.firstSector.sector << ")" << std::endl;
 
             directory.push_back(entry);
         }
     } while (track != 0);
+
+
+    for (const DirEntry& entry : directory) {
+        if (!(entry.fileType == SEQ || entry.fileType == PRG)) continue;
+
+        std::cout << "Export \"" << entry.fileName << "\" ";
+        for (int i = entry.fileName.size(); i < 16; i++) {
+            std::cout << " ";
+        }
+        std::cout << "* "[entry.closed];
+
+        if (entry.fileType <= 0b100) {
+            std::cout << fileTypes[entry.fileType];
+        } else {
+            std::cout << "???";
+        }
+
+        std::cout << " <"[entry.locked] << " ? (Y/N) ";
+        char yesorno ;
+        std::cin >> yesorno;
+
+        if (yesorno == 'Y' || yesorno == 'y') {
+            if (entry.fileType == SEQ || entry.fileType == PRG) {
+                std::string exportName;
+                std::cout << "File name? ";
+                std::cin >> std::ws;
+                std::getline(std::cin, exportName);
+                std::ofstream os(exportName, std::ios::out | std::ios::binary);
+
+                char buf[256];
+                unsigned track = entry.firstSector.track, sector = entry.firstSector.sector;
+                do {
+                    is.seekg(posInImage(track, sector), std::ios::beg);
+
+                    is.readsome(buf, 256);
+                    track = buf[0] & 0xFF, sector = buf[1] & 0xFF;
+                    std::cout << track << ", " << sector << "   ";
+
+                    if (track) {
+                        os.write(buf + 2, 254);
+                    } else {
+                        os.write(buf + 2, sector);
+                    }
+                } while (track);
+        
+                os.close();
+
+                std::cout << "Exported to " << exportName << std::endl;
+            }
+        }
+    }
+
+    is.close();
 }
