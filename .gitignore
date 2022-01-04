@@ -1,6 +1,9 @@
-# commodore stuff
+# Commodore stuff
 *.d64
 *.zip
+
+# Hex editor stuff
+*.bak
 
 # VSCode stuff
 .vscode

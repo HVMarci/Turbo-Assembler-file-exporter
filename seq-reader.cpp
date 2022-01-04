@@ -1,10 +1,13 @@
 #include <iostream>
 #include <fstream>
+#include <iomanip>
 #include <string>
 #include <vector>
 
 constexpr long long D64_FILE_SIZE = 174848;
 constexpr long long BAM_AREA_START = 0x16500;
+
+std::vector<std::string> fileTypes{"DEL", "SEQ", "PRG", "USR", "REL"};
 
 class FileHandler {
     public:
@@ -35,6 +38,38 @@ int countOnBits(unsigned char a) {
         a >>= 1;
     }
     return c;
+}
+
+int posInImage(int track, int sector) {
+    if (track <= 17) { // 21 sectors per track
+        return (track - 1) * 21 * 256 + sector * 256;
+    } else if (track <= 24) { // 19 sectors per track
+        return 0x16500 + (track - 18) * 19 * 256 + sector * 256;
+    } else if (track <= 30) { // 18 sectors per track
+        return 0x1EA00 + (track - 25) * 18 * 256 + sector * 256;
+    } else { // 17 sectors per track
+        return 0x25600 + (track - 31) * 17 * 256 + sector * 256;
+    }
+}
+
+void posInImageTest() {
+    int prev = -256, perTrack = 21;
+    for (int track = 1; track <= 35; track++) {
+        if (track == 18) {
+            perTrack = 19;
+        } else if (track == 25) {
+            perTrack = 18;
+        } else if (track == 31) {
+            perTrack = 17;
+        }
+        for (int sector = 0; sector < perTrack; sector++) {
+            int val = posInImage(track, sector);
+            if (prev + 256 != val) {
+                std::cerr << "Wrong at " << track << "/" << sector << std::endl;
+            }
+            prev = val;
+        }
+    }
 }
 
 int main(int argc, char** argv) {
@@ -85,7 +120,7 @@ int main(int argc, char** argv) {
     }
 
     std::cout << freeSectors << " szabad szektor" << std::endl;
-    std::cout << (freeSectors - bam[18 * 4]) << " blocks free" << std::endl; // directory szektor (18-as) nélkül (a C64-en is így láthatjuk a számot ha minden igaz)
+    std::cout << (freeSectors - bam[18 * 4]) << " blocks free" << std::endl; // directory track (18-as) nélkül (a C64-en is így láthatjuk a számot ha minden igaz)
     
 
     // TODO: a PETSCII betűkre valami mappingot kéne készíteni
@@ -99,4 +134,48 @@ int main(int argc, char** argv) {
 
     std::string diskID(bam.begin() + 0xA2, bam.begin() + 0xA7);
     std::cout << "Disk ID: \"" << diskID << "\"" << std::endl;
+
+    std::cout << "Directory:" << std::endl;
+
+    std::vector<unsigned char> dir(256); // TODO: rename
+    int track = 18, sector = 1;
+    do {
+        is.seekg(posInImage(track, sector), std::ios::beg);
+        for (int i = 0; i < 256; i++) {
+            dir[i] = is.get();
+        }
+
+        track = dir[0];
+        sector = dir[1];
+
+        for (int i = 0; i < 256; i += 32) {
+            int fileSize = dir[i + 0x1E] + dir[i + 0x1F] * 256;
+            std::cout << std::setw(3) << std::left << fileSize << "  \""; // SD2IEC esetében a 4 számjegyű számok után elcsúszik a szöveg
+
+            std::string fileName;
+            for (int j = 0; j < 16; j++) {
+                if (dir[i + 5 + j] == 0xA0) break; // remove padding
+                fileName += dir[i + 5 + j];
+            }
+
+            std::cout << fileName << "\"";
+            for (int i = fileName.size(); i < 17; i++) {
+                std::cout << " ";
+            }
+
+            bool locked = dir[i + 2] & 0b01000000, closed = dir[i + 2] & 0b10000000;
+            std::cout << "* "[closed];
+
+            int fileType = dir[i + 2] & 0b1111;
+            if (fileType <= 0b100) {
+                std::cout << fileTypes[fileType];
+            } else {
+                std::cout << "???";
+            }
+
+            std::cout << " <"[locked];
+
+            std::cout << std::endl;
+        }
+    } while (track != 0);
 }
