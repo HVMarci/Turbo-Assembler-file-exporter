@@ -2,6 +2,8 @@
 *.d64
 *.zip
 *.prg
+*.txt
+*.cfg
 
 # Hex editor stuff
 *.bak

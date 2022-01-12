@@ -106,7 +106,7 @@ int main(int argc, char** argv) {
     }
 
     if (bam[0] != 18 || bam[1] != 1) {
-        std::cout << "Warning: First direntry misaligned to " << bam[0] << "/" << bam[1] << " (Track/Sector in decimal)" << std::endl;
+        std::cout << "Warning: First direntry misaligned to " << (int) bam[0] << "/" << (int) bam[1] << " (Track/Sector in decimal)" << std::endl;
     }
 
     std::cout << "DOS Version: ";
