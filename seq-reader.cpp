@@ -217,10 +217,10 @@ int main(int argc, char** argv) {
         }
 
         std::cout << " <"[entry.locked] << " ? (Y/N) ";
-        char yesorno ;
-        std::cin >> yesorno;
+        std::string yesorno;
+        std::getline(std::cin, yesorno);
 
-        if (yesorno == 'Y' || yesorno == 'y') {
+        if (yesorno.size() > 0 && (yesorno[0] == 'Y' || yesorno[0] == 'y')) {
             if (entry.fileType == SEQ || entry.fileType == PRG) {
                 std::string exportName;
                 std::cout << "File name? ";
